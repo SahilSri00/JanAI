@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cais_postgres
+    environment:
+      POSTGRES_DB: cais_db
+      POSTGRES_USER: cais_user
+      POSTGRES_PASSWORD: cais_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - cais_postgres_data:/var/lib/postgresql/data
+
+  mongodb:
+    image: mongo:7.0
+    container_name: cais_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - cais_mongo_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: cais_redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - cais_redis_data:/data
+
+volumes:
+  cais_postgres_data:
+  cais_mongo_data:
+  cais_redis_data:
