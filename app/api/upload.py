@@ -3,6 +3,8 @@ from fastapi.responses import JSONResponse
 import uuid, structlog
 from app.core.preprocessing.image import enhance_image, assess_quality
 from app.core.ocr.engine import extract_text
+from app.core.analysis.classifier import classify_document
+from app.core.scoring.readiness import calculate_readiness_score
 
 router = APIRouter(tags=["documents"])
 log = structlog.get_logger()
@@ -79,9 +81,8 @@ async def upload_document(
         enhanced = content  # Fall back to original
 
     # Run OCR
-    ocr_result = extract_text(enhanced, filename=file.filename or "document.jpg")
+    ocr_result = extract_text(enhanced, filename=file.filename or "document.jpg", language=language)
 
-    from app.core.analysis.classifier import classify_document
     classification = classify_document(ocr_result["text"])
     log.info("upload.classified", 
             document_id=document_id,
@@ -103,6 +104,9 @@ async def upload_document(
     
     _processing_store[document_id]["classification"] = classification
 
+    score_result = calculate_readiness_score(ocr_result["text"], classification["scheme_id"])
+    _processing_store[document_id]["score_result"] = score_result
+    
     return {
         "success": True,
         "data": {
@@ -114,7 +118,11 @@ async def upload_document(
             "quality_score": quality["score"],
             "document_type": classification["document_type"],   
             "scheme_detected": classification["scheme_id"],     
-            "scheme_confidence": classification["confidence"]   
+            "scheme_confidence": classification["confidence"],
+            "readiness_score": score_result["score"],
+            "risk_level": score_result["risk_level"],
+            "missing_fields": score_result["missing_fields"],
+            "missing_documents": score_result["missing_documents"],
         }
     }
 
