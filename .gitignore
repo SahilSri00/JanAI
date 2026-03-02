@@ -1,0 +1,81 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Environment variables — NEVER commit this
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ML Models — too large for git
+*.pdiparams
+*.pdmodel
+*.nb
+*.trt
+~/.paddlex/
+~/.EasyOCR/
+*.pt
+*.pth
+*.bin
+*.safetensors
+
+# PaddleOCR downloaded models
+.paddlex/
+inference/
+
+# Uploads — user documents should never be in git
+tests/samples/*.jpg
+tests/samples/*.png
+tests/samples/*.pdf
+tests/samples/*.jpeg
+
+# Database
+*.sqlite3
+*.db
+
+# Docker volumes
+postgres_data/
+mongo_data/
+redis_data/
+
+# OS
+Thumbs.db
+Desktop.ini
