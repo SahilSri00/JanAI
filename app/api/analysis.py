@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-
+from app.core.translation.bhashini import translate
 from app.db.mongo import get_documents_collection, get_db
 from app.core.scoring.decision import generate_action_items
 from app.core.analysis.deadline import extract_deadlines
@@ -205,3 +205,16 @@ async def bert_test():
         result = classify_with_indic_bert(text)
         results.append({"text": text[:50], "result": result})
     return {"results": results}
+@router.get("/translate-test")
+async def translate_test(
+    text: str = "Hello farmer this is a sample message",
+    src: str = "en",
+    tgt: str = "hi",
+):
+    """
+    Test Bhashini translation with Redis caching.
+    First call hits Bhashini API.
+    Second call with same params returns from Redis cache.
+    """
+    result = await translate(text=text, source_lang=src, target_lang=tgt)
+    return {"success": True, "data": result}
