@@ -1,6 +1,7 @@
 import re
 from typing import Dict, Tuple
-
+from app.core.analysis.fuzzy_matcher import fuzzy_boost_classification
+from app.core.analysis.indic_bert import classify_with_indic_bert
 
 # Simple keyword-based rules for schemes
 SCHEME_KEYWORDS: Dict[str, Dict[str, list[str]]] = {
@@ -141,11 +142,16 @@ DOCUMENT_TYPE_RULES = {
 
 def classify_document(ocr_text: str) -> Dict:
     """
-    Classify document_type and scheme_id using simple keyword scoring.
+    Classify document using three-layer approach:
+    1. Keyword matching (fast, rule-based)
+    2. Fuzzy matching (handles typos)
+    3. Indic-BERT (semantic, handles paraphrasing)
+
+    Final result combines all three for best accuracy.
     """
     text = ocr_text.lower()
 
-    # 1) Document type
+    # --- Layer 1: Document type via keywords ---
     doc_type_scores: Dict[str, int] = {}
     for doc_type, patterns in DOCUMENT_TYPE_RULES.items():
         score = 0
@@ -154,35 +160,29 @@ def classify_document(ocr_text: str) -> Dict:
                 score += 1
         doc_type_scores[doc_type] = score
 
-    # default
     best_doc_type = "APPLICATION_FORM"
     if doc_type_scores:
         best_doc_type = max(doc_type_scores, key=doc_type_scores.get)
         if doc_type_scores[best_doc_type] == 0:
             best_doc_type = "APPLICATION_FORM"
 
-    # 2) Scheme detection
+    # --- Layer 2: Scheme via keywords ---
     scheme_scores: Dict[str, int] = {}
     for scheme_id, cfg in SCHEME_KEYWORDS.items():
         must_patterns = cfg.get("must", [])
         boost_patterns = cfg.get("boost", [])
 
-        # require at least one MUST to consider
         if not any(re.search(pat, text) for pat in must_patterns):
             scheme_scores[scheme_id] = 0
             continue
 
         score = 0
-        # each MUST hit adds 2 points
         for pat in must_patterns:
             if re.search(pat, text):
                 score += 2
-
-        # each BOOST hit adds 1 point
         for pat in boost_patterns:
             if re.search(pat, text):
                 score += 1
-
         scheme_scores[scheme_id] = score
 
     best_scheme = "unknown"
@@ -192,17 +192,41 @@ def classify_document(ocr_text: str) -> Dict:
             best_scheme = sid
             best_score = sc
 
-    # simple confidence: normalized by max possible for that scheme
     confidence = 0.0
     if best_scheme != "unknown":
         cfg = SCHEME_KEYWORDS[best_scheme]
-        max_score = 2 * len(cfg.get("must", [])) + len(cfg.get("boost", []))
+        max_score = (
+            2 * len(cfg.get("must", [])) + len(cfg.get("boost", []))
+        )
         confidence = round(best_score / max_score, 2) if max_score > 0 else 0.0
+
+    # --- Layer 3: Fuzzy boost ---
+    boosted = fuzzy_boost_classification(
+        ocr_text=ocr_text,
+        keyword_scheme_id=best_scheme,
+        keyword_confidence=confidence,
+    )
+
+    # --- Layer 4: Indic-BERT (when confidence still low) ---
+    bert_result = None
+    if boosted["confidence"] < 0.6:
+        bert_result = classify_with_indic_bert(ocr_text)
+
+        # If Indic-BERT is more confident, use it
+        if (
+            bert_result["scheme_id"] != "unknown"
+            and bert_result["confidence"] > boosted["confidence"]
+        ):
+            boosted["scheme_id"] = bert_result["scheme_id"]
+            boosted["confidence"] = bert_result["confidence"]
+            boosted["method"] = "indic-bert"
+            best_doc_type = bert_result["document_type"]
 
     return {
         "document_type": best_doc_type,
-        "scheme_id": best_scheme,
-        "confidence": confidence,
+        "scheme_id": boosted["scheme_id"],
+        "confidence": boosted["confidence"],
+        "detection_method": boosted.get("method", "keyword"),
         "all_scores": scheme_scores,
+        "bert_result": bert_result,
     }
-

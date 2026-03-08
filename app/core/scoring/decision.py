@@ -213,8 +213,11 @@ def generate_action_items(
         meta = FIELD_HINTS.get(field_id)
         if not meta:
             title = "एक आवश्यक फ़ील्ड भरें" if lang_hi else "Fill a required field"
-            desc = f"फ़ील्ड '{field_id}' फॉर्म में नहीं मिली।" if lang_hi \
+            desc = (
+                f"फ़ील्ड '{field_id}' फॉर्म में नहीं मिली।"
+                if lang_hi
                 else f"The field '{field_id}' is missing in the form, please fill it."
+            )
         else:
             title = meta["title_hi"] if lang_hi else meta["title_en"]
             desc = meta["hint_hi"] if lang_hi else meta["hint_en"]
@@ -235,20 +238,24 @@ def generate_action_items(
         meta = DOCUMENT_HINTS.get(doc_id)
         if not meta:
             title = "आवश्यक दस्तावेज़ अपलोड करें" if lang_hi else "Upload required document"
-            desc = f"दस्तावेज़ '{doc_id}' नहीं मिला।" if lang_hi \
+            desc = (
+                f"दस्तावेज़ '{doc_id}' नहीं मिला।"
+                if lang_hi
                 else f"The document '{doc_id}' is missing, please upload a clear copy."
+            )
         else:
             title = meta["title_hi"] if lang_hi else meta["title_en"]
-            desc = meta["hint_hi"] if lang_hi else meta
-    actions.append({
-        "action_id": action_id,
-        "title": title,
-        "description": desc,
-        "priority": _base_priority_for_document(doc_id),
-        "category": "UPLOAD_DOCUMENT",
-        "scheme_id": scheme_id,
-        "estimated_time": ESTIMATED_TIME.get(action_id, "1-2 days"),
-   })
+            desc = meta["hint_hi"] if lang_hi else meta["hint_en"]
+
+        actions.append({
+            "action_id": action_id,
+            "title": title,
+            "description": desc,
+            "priority": _base_priority_for_document(doc_id),
+            "category": "UPLOAD_DOCUMENT",
+            "scheme_id": scheme_id,
+            "estimated_time": ESTIMATED_TIME.get(action_id, "1-2 days"),
+        })
 
     # Sort: priority asc, fields before documents at same priority
     actions.sort(key=lambda a: (a["priority"], a["category"]))
